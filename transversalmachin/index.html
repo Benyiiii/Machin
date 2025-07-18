@@ -1,0 +1,187 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <title>Simulador CSGO</title>
+    <style>
+        body { 
+            font-family: Arial, sans-serif; 
+            margin: 40px; 
+            background-image: url('https://preview.redd.it/v065cssvidh01.jpg?auto=webp&s=4feb78943c46e1b487330230b3d61524af14d804');
+            background-size: cover;
+            background-position: center;
+            color: white;
+        }
+        h1 { color: #b8bb1c; text-align: center; }
+        form { 
+            background: rgba(97, 95, 95, 0.8); 
+            padding: 20px; 
+            margin: 20px auto; 
+            border-radius: 10px; 
+            max-width: 500px;
+        }
+        label { display: block; margin-top: 15px; color: #d6c64f; }
+        input, select, button { 
+            margin: 8px 0; 
+            padding: 10px; 
+            width: 100%; 
+            box-sizing: border-box;
+            border-radius: 4px;
+            border: none;
+        }
+        button { 
+            background-color: #2980b9; 
+            color: white; 
+            font-weight: bold;
+            cursor: pointer;
+            margin-top: 15px;
+        }
+        button:hover { background-color: #3498db; }
+        .result-box {
+            background: rgba(255, 255, 255, 0.9);
+            padding: 15px;
+            border-radius: 8px;
+            margin-top: 20px;
+            color: #333;
+        }
+        .win { border-left: 5px solid #4CAF50; }
+        .loss { border-left: 5px solid #f44336; }
+        .prediction { font-size: 1.2em; font-weight: bold; }
+        .tip { font-style: italic; margin-top: 10px; }
+        .range-info { font-size: 12px; color: #bbbbbb; }
+    </style>
+</head>
+<body>
+    <h1>🎮 Simulador CS:GO - Predicciones por Ronda</h1>
+    
+    <!-- Formulario de Clasificación (RoundWinner) -->
+    <form id="form-clasificacion">
+        <h2>🏆 Predicción de Ganador de Ronda</h2>
+        
+        <label>Headshots en la ronda:</label>
+        <input type="number" id="round_headshots" min="0" max="10" required>
+        <p class="range-info">Rango típico: 0-5 por ronda</p>
+        
+        <label>Valor del equipamiento del equipo ($):</label>
+        <input type="number" id="team_equipment" min="0" max="16000" required>
+        <p class="range-info">ECO: 0-1000 | Full Buy: 4000+</p>
+        
+        <label>Usa Rifle de Asalto (PrimaryAssaultRifle):</label>
+        <select id="assault_rifle" required>
+            <option value="1">Sí</option>
+            <option value="0">No</option>
+        </select>
+        
+        <label>Tiempo vivo en segundos:</label>
+        <input type="number" id="time_alive" min="0" max="115" step="0.1" required>
+        <p class="range-info">Duración máxima de ronda: 115 seg</p>
+        
+        <button type="submit">Predecir Resultado</button>
+        
+        <div id="resultado-clasificacion" class="result-box" style="display:none;">
+            <div id="prediction-content"></div>
+        </div>
+    </form>
+
+    <!-- Formulario de Regresión (RoundKills) -->
+    <form id="form-regresion">
+        <h2>🔫 Predicción de Bajas por Ronda</h2>
+        
+        <!-- Mismos campos que el formulario de clasificación -->
+        <label>Headshots en la ronda:</label>
+        <input type="number" id="round_headshots_reg" min="0" max="10" required>
+        
+        <label>Valor del equipamiento del equipo ($):</label>
+        <input type="number" id="team_equipment_reg" min="0" max="16000" required>
+        
+        <label>Usa Rifle de Asalto:</label>
+        <select id="assault_rifle_reg" required>
+            <option value="1">Sí</option>
+            <option value="0">No</option>
+        </select>
+        
+        <label>Tiempo vivo en segundos:</label>
+        <input type="number" id="time_alive_reg" min="0" max="115" step="0.1" required>
+        
+        <button type="submit">Predecir Bajas</button>
+        
+        <div id="resultado-regresion" class="result-box" style="display:none;">
+            <p>Predicción de bajas: <span id="kills-prediction"></span></p>
+            <p class="tip">💡 Consejo: Más tiempo vivo generalmente significa más oportunidades para bajas</p>
+        </div>
+    </form>
+
+    <script>
+        // Clasificación - RoundWinner
+        document.getElementById("form-clasificacion").addEventListener("submit", async function(e) {
+            e.preventDefault();
+            
+            const data = {
+                RoundHeadshots: parseInt(document.getElementById("round_headshots").value),
+                TeamStartingEquipmentValue: parseInt(document.getElementById("team_equipment").value),
+                PrimaryAssaultRifle: parseInt(document.getElementById("assault_rifle").value),
+                TimeAlive: parseFloat(document.getElementById("time_alive").value)
+            };
+            
+            try {
+                const response = await fetch("/predict/clasificacion", {
+                    method: "POST",
+                    headers: { "Content-Type": "application/json" },
+                    body: JSON.stringify(data)
+                });
+                
+                const result = await response.json();
+                const predictionDiv = document.getElementById("prediction-content");
+                const resultBox = document.getElementById("resultado-clasificacion");
+                
+                if (result.RoundWinner_predicho === 1) {
+                    predictionDiv.innerHTML = `
+                        <p class="prediction" style="color: #4CAF50;">✅ Probabilidad de GANAR la ronda: ALTA</p>
+                        <p class="tip">Estrategia recomendada: Mantén posiciones seguras y controla el mapa</p>
+                    `;
+                    resultBox.className = "result-box win";
+                } else {
+                    predictionDiv.innerHTML = `
+                        <p class="prediction" style="color: #f44336;">❌ Probabilidad de PERDER la ronda: ALTA</p>
+                        <p class="tip">Estrategia recomendada: Considera jugadas agresivas o guardar armas</p>
+                    `;
+                    resultBox.className = "result-box loss";
+                }
+                
+                resultBox.style.display = "block";
+            } catch (error) {
+                console.error("Error:", error);
+            }
+        });
+
+        // Regresión - RoundKills
+        document.getElementById("form-regresion").addEventListener("submit", async function(e) {
+            e.preventDefault();
+            
+            const data = {
+                RoundHeadshots: parseInt(document.getElementById("round_headshots_reg").value),
+                TeamStartingEquipmentValue: parseInt(document.getElementById("team_equipment_reg").value),
+                PrimaryAssaultRifle: parseInt(document.getElementById("assault_rifle_reg").value),
+                TimeAlive: parseFloat(document.getElementById("time_alive_reg").value)
+            };
+            
+            try {
+                const response = await fetch("/predict/regresion", {
+                    method: "POST",
+                    headers: { "Content-Type": "application/json" },
+                    body: JSON.stringify(data)
+                });
+                
+                const result = await response.json();
+                const killsPrediction = document.getElementById("kills-prediction");
+                const resultBox = document.getElementById("resultado-regresion");
+                
+                killsPrediction.textContent = result.RoundKills_predicho.toFixed(1);
+                resultBox.style.display = "block";
+            } catch (error) {
+                console.error("Error:", error);
+            }
+        });
+    </script>
+</body>
+</html>
